@@ -1,0 +1,22 @@
+version: "3"
+services:
+  node1:
+    image: taemon1337/dregistry:0.0.1
+    command:
+      - "-name"
+      - node1
+      - "-emit"
+  node2:
+    image: taemon1337/dregistry:0.0.1
+    command:
+      - "-name"
+      - node2
+      - "-join"
+      - node1:7946
+  node3:
+    image: taemon1337/dregistry:0.0.1
+    command:
+      - "-name"
+      - node3
+      - "-join"
+      - node1:7946

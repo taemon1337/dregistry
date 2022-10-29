@@ -1,25 +1,18 @@
 ## Build Image
 FROM golang:1.19-alpine AS build
 
-WORKDIR /app
+WORKDIR /go/src/app
 
-COPY go.mod ./
-COPY go.sum ./
+COPY . .
+
 RUN go mod download
-
-COPY *.go ./
-
-RUN go build -o /dregistry
+RUN CGO_ENABLED=0 go build -o /go/bin/app
 
 ### Run Image
-FROM gcr.io/distroless/base-debian10
+FROM gcr.io/distroless/static-debian11
 
-WORKDIR /
+COPY --from=build /go/bin/app /
 
-COPY --from=build /dregistry /dregistry
+EXPOSE 7946
 
-EXPOSE 7373
-
-USER nonroot:nonroot
-
-ENTRYPOINT ["/dregistry"]
+ENTRYPOINT ["/app"]

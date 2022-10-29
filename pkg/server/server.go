@@ -2,8 +2,10 @@ package server
 
 import (
   "log"
+  "fmt"
   "time"
   "sync"
+  "errors"
   "context"
 
 	"github.com/hashicorp/serf/serf"
@@ -29,7 +31,7 @@ func New(cfg *serf.Config) (*Server, error) {
   var s *serf.Serf
   var err error
 
-  eventCh := make(chan serf.Event, 4) // s.srv.EventCh
+  eventCh := make(chan serf.Event, 4)
   cfg.EventCh = eventCh
 
   if s, err = serf.Create(cfg); err != nil {
@@ -64,17 +66,35 @@ func (s *Server) Listen() {
   }()
 }
 
-func (s *Server) Start() error {
+func (s *Server) Start(joins []string, emit bool) error {
   log.Println("Start listener...")
   s.Listen()
+
+  if _, err := s.srv.Join(joins, false); err != nil {
+    return errors.New(fmt.Sprintf("could not join - %s", err))
+  }
 
   log.Println("Starting events...")
   for {
     time.Sleep(3*time.Second)
-    if err := s.srv.UserEvent("hello", []byte("is anybody out there?"), true); err != nil {
-      log.Printf("[ERROR] error sending user event hello - %s", err)
-    }
+    if emit {
+      resp, err := s.srv.Query("ping", []byte("return-me"), &serf.QueryParam{}); 
+      if err != nil {
+        log.Printf("[ERROR] error sending ping query - %s", err)
+      }
+  
+      log.Printf("[RESP] %s", resp)
 
-    log.Printf("SENT 'hello'")
+      if err := s.srv.UserEvent("hello", []byte("is anybody out there?"), true); err != nil {
+        log.Printf("[ERROR] error sending user event hello - %s", err)
+      }
+
+      log.Printf("SENT 'hello'")
+
+      for _, member := range s.srv.Members() {
+        log.Printf("MEMBER: %s@%s:%d", member.Name, member.Addr, member.Port)
+      }
+    }
   }
+  return nil
 }
